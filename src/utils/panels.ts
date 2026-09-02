@@ -44,7 +44,10 @@ export async function postRegistrationPanel(channel: TextChannel): Promise<strin
   } catch (error) {
     logger.error('Failed to post registration panel', {
       channelId: channel.id,
+      channelType: (channel as any)?.type,
       error: error instanceof Error ? error.message : String(error),
+      errorCode: (error as any)?.code,
+      errorStatus: (error as any)?.status,
     });
     return null;
   }
@@ -76,7 +79,10 @@ export async function postMessagingPanel(channel: TextChannel): Promise<string |
   } catch (error) {
     logger.error('Failed to post messaging panel', {
       channelId: channel.id,
+      channelType: (channel as any)?.type,
       error: error instanceof Error ? error.message : String(error),
+      errorCode: (error as any)?.code,
+      errorStatus: (error as any)?.status,
     });
     return null;
   }

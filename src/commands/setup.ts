@@ -7,7 +7,7 @@ function isStaff(interaction: ChatInputCommandInteraction): boolean {
   if (!config.staff.roleId) {
     return false;
   }
-  return (interaction.member?.roles as any)?.has?.(config.staff.roleId) || false;
+  return (interaction.member?.roles as any)?.cache?.has(config.staff.roleId) ?? false;
 }
 
 export const setup = {
@@ -74,6 +74,26 @@ export const setup = {
         issues.push('Bot lacks Manage Messages permission.');
       }
 
+      // Check channel-specific permissions
+      if (registrationChannel) {
+        const regPerms = registrationChannel.permissionsFor(botMember);
+        if (!regPerms?.has('ViewChannel')) {
+          issues.push('Bot cannot view registration channel (check channel permissions).');
+        }
+        if (!regPerms?.has('SendMessages')) {
+          issues.push('Bot cannot send messages to registration channel (check channel permissions).');
+        }
+      }
+      if (messageChannel) {
+        const msgPerms = messageChannel.permissionsFor(botMember);
+        if (!msgPerms?.has('ViewChannel')) {
+          issues.push('Bot cannot view message channel (check channel permissions).');
+        }
+        if (!msgPerms?.has('SendMessages')) {
+          issues.push('Bot cannot send messages to message channel (check channel permissions).');
+        }
+      }
+
       if (issues.length > 0) {
         await interaction.editReply({
           content: [
@@ -90,6 +110,14 @@ export const setup = {
       // Post the registration and messaging panels
       const regChannel = registrationChannel as TextChannel;
       const msgChannel = messageChannel as TextChannel;
+
+      // DIAGNOSTIC: Log channel types and text-based status
+      logger.info('Channel diagnostics', {
+        regChannelType: registrationChannel?.type,
+        regChannelIsTextBased: (registrationChannel as any)?.isTextBased?.(),
+        msgChannelType: messageChannel?.type,
+        msgChannelIsTextBased: (messageChannel as any)?.isTextBased?.(),
+      });
 
       const panelResults: string[] = [];
 

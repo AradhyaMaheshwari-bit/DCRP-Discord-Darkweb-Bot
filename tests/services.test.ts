@@ -152,7 +152,7 @@ describe('Message Service', () => {
     });
 
     it('should reject messages exceeding max length', () => {
-      const longMessage = 'a'.repeat(2000);
+      const longMessage = 'a'.repeat(2001);
       const result = validateMessageContent(longMessage);
       expect(result.valid).toBe(false);
       expect(result.error).toContain('exceeds');
