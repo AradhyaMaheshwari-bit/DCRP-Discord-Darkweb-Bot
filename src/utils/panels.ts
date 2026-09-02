@@ -1,4 +1,4 @@
-import { TextChannel } from 'discord.js';
+import { TextChannel, EmbedBuilder, Colors } from 'discord.js';
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { config } from '../config/config';
 import { logger } from '../utils/logger';
@@ -14,28 +14,44 @@ export async function postRegistrationPanel(channel: TextChannel): Promise<strin
 
     const row = new ActionRowBuilder<ButtonBuilder>().addComponents(button);
 
+    const embed = new EmbedBuilder()
+      .setTitle('🕸️ DARKWEB REGISTRATION')
+      .setColor(Colors.Blue)
+      .setDescription('🟢 **Welcome to the Darkweb.**\n\nCreate your anonymous numeric identity to access the Darkweb messaging system.')
+      .addFields(
+        {
+          name: '🔒 YOUR PRIVACY MATTERS',
+          value: 'Your Discord identity will NOT be displayed alongside your Darkweb messages.'
+        },
+        {
+          name: '​',
+          value: '​'
+        },
+        {
+          name: '⚖️ RULES',
+          value: '• Choose a unique numeric tag\n• Keep your tag private\n• No spam or abuse\n• Follow server rules\n• Be respectful'
+        },
+        {
+          name: '​',
+          value: '​'
+        },
+        {
+          name: '⚙️ HOW IT WORKS',
+          value: '1. Create your anonymous tag\n2. Send messages via bot DM or control panel buttons\n3. Your messages will appear in the darkweb channel with your tag'
+        },
+        {
+          name: '​',
+          value: '​'
+        },
+        {
+          name: 'GET STARTED BELOW:',
+          value: '​'
+        }
+      )
+      .setImage('https://cdn.dribbble.com/userupload/22408110/file/original-dd8968e341f92b175cb61748f7ebd6c0.gif');
+
     const message = await channel.send({
-      content: [
-        `╔════════════════════════════════════╗`,
-        `       🕸️ DARKWEB REGISTRATION`,
-        `╠════════════════════════════════════╣`,
-        ``,
-        `Welcome to the Darkweb.`,
-        ``,
-        `Create your anonymous numeric identity`,
-        `to access the Darkweb messaging system.`,
-        ``,
-        `Your Discord identity will not be displayed`,
-        `alongside your Darkweb messages.`,
-        ``,
-        `**Rules:**`,
-        `• Choose a unique numeric tag`,
-        `• Do not impersonate another user`,
-        `• No spam`,
-        `• Follow server rules`,
-        ``,
-        `╚════════════════════════════════════╝`,
-      ].join('\n'),
+      embeds: [embed],
       components: [row],
     });
 
