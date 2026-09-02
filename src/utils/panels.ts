@@ -1,6 +1,5 @@
 import { TextChannel, EmbedBuilder, Colors } from "discord.js";
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
-import { config } from "../config/config";
 import { logger } from "../utils/logger";
 import { CUSTOM_IDS } from "../types";
 
@@ -91,22 +90,52 @@ export async function postMessagingPanel(
   channel: TextChannel,
 ): Promise<string | null> {
   try {
-    const button = new ButtonBuilder()
+    const newMessageButton = new ButtonBuilder()
       .setCustomId(CUSTOM_IDS.NEW_MESSAGE_BUTTON)
       .setLabel("New Message")
       .setEmoji("📝")
       .setStyle(ButtonStyle.Primary);
 
-    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(button);
+    const replyButton = new ButtonBuilder()
+      .setCustomId("darkweb:reply_message")
+      .setLabel("Reply to Message")
+      .setEmoji("↩️")
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(true);
+
+    const editButton = new ButtonBuilder()
+      .setCustomId("darkweb:edit_message")
+      .setLabel("Edit Message")
+      .setEmoji("✏️")
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(true);
+
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      newMessageButton,
+      replyButton,
+      editButton,
+    );
+
+    const embed = new EmbedBuilder()
+      .setTitle("🕸️ DARKWEB MESSAGING")
+      .setColor(Colors.Blue)
+      .setDescription(
+        "Send anonymous messages through the Darkweb.\n\n" +
+        "Your registered Darkweb identity is automatically attached to your messages.",
+      )
+      .addFields(
+        {
+          name: "🔒 PRIVACY",
+          value: "Your Discord identity is never displayed alongside your Darkweb messages.",
+        },
+        {
+          name: "GET STARTED",
+          value: "Use the buttons below to:\n📝 Send a new message\n↩️ Reply to a message\n✏️ Edit your message",
+        },
+      );
 
     const message = await channel.send({
-      content: [
-        `🕸️ **DARKWEB MESSAGING**`,
-        ``,
-        `Send anonymous messages using the button below.`,
-        ``,
-        `Your registered Darkweb identity is automatically attached to your message.`,
-      ].join("\n"),
+      embeds: [embed],
       components: [row],
     });
 
