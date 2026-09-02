@@ -26,11 +26,14 @@ model DarkwebMessage {
   darkwebTag       String   @map("darkweb_tag") @db.VarChar(4)
   content          String
   discordMessageId String?  @map("discord_message_id")
+  replyToMessageId String?  @map("reply_to_message_id")
   deleted          Boolean  @default(false)
   createdAt        DateTime @default(now()) @map("created_at")
   editedAt         DateTime? @map("edited_at")
 
   user DarkwebUser? @relation(fields: [discordUserId], references: [discordId])
+  replyTo DarkwebMessage? @relation("MessageReplies", fields: [replyToMessageId], references: [id])
+  replies DarkwebMessage[] @relation("MessageReplies")
 
   @@map("darkweb_messages")
 }

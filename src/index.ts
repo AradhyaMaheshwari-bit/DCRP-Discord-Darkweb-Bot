@@ -13,8 +13,12 @@ import { handleCreateTagButton } from './interactions/buttons/createTag';
 import { handleNewMessageButton } from './interactions/buttons/newMessage';
 import { handleDeleteTagButton } from './interactions/buttons/deleteTag';
 import { handleDeleteTagConfirm, handleDeleteTagCancel } from './interactions/buttons/deleteTagConfirmation';
+import { handleReplyMessageButton } from './interactions/buttons/replyMessage';
+import { handleEditMessageButton } from './interactions/buttons/editMessage';
 import { handleCreateTagModal } from './interactions/modals/createTag';
 import { handleNewMessageModal } from './interactions/modals/newMessage';
+import { handleReplyContentModal } from './interactions/modals/replyContent';
+import { handleEditMessageModal } from './interactions/modals/editMessage';
 import { staff } from './commands/staff';
 import { setup } from './commands/setup';
 
@@ -72,6 +76,10 @@ client.on('interactionCreate', async (interaction) => {
         await handleDeleteTagConfirm(interaction);
       } else if (interaction.customId === CUSTOM_IDS.DELETE_TAG_CANCEL) {
         await handleDeleteTagCancel(interaction);
+      } else if (interaction.customId === CUSTOM_IDS.REPLY_MESSAGE_BUTTON) {
+        await handleReplyMessageButton(interaction);
+      } else if (interaction.customId === CUSTOM_IDS.EDIT_MESSAGE_BUTTON) {
+        await handleEditMessageButton(interaction);
       }
       return;
     }
@@ -82,6 +90,10 @@ client.on('interactionCreate', async (interaction) => {
         await handleCreateTagModal(interaction);
       } else if (interaction.customId === CUSTOM_IDS.NEW_MESSAGE_MODAL) {
         await handleNewMessageModal(interaction);
+      } else if (interaction.customId === CUSTOM_IDS.REPLY_CONTENT_MODAL) {
+        await handleReplyContentModal(interaction);
+      } else if (interaction.customId === CUSTOM_IDS.EDIT_MESSAGE_MODAL) {
+        await handleEditMessageModal(interaction);
       }
       return;
     }

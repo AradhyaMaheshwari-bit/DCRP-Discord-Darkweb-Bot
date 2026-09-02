@@ -97,18 +97,16 @@ export async function postMessagingPanel(
       .setStyle(ButtonStyle.Primary);
 
     const replyButton = new ButtonBuilder()
-      .setCustomId("darkweb:reply_message")
+      .setCustomId(CUSTOM_IDS.REPLY_MESSAGE_BUTTON)
       .setLabel("Reply to Message")
       .setEmoji("↩️")
-      .setStyle(ButtonStyle.Secondary)
-      .setDisabled(true);
+      .setStyle(ButtonStyle.Secondary);
 
     const editButton = new ButtonBuilder()
-      .setCustomId("darkweb:edit_message")
+      .setCustomId(CUSTOM_IDS.EDIT_MESSAGE_BUTTON)
       .setLabel("Edit Message")
       .setEmoji("✏️")
-      .setStyle(ButtonStyle.Secondary)
-      .setDisabled(true);
+      .setStyle(ButtonStyle.Secondary);
 
     const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
       newMessageButton,

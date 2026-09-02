@@ -132,3 +132,139 @@ export async function getMessageById(messageId: string) {
     where: { id: messageId },
   });
 }
+
+export async function getMessageByDiscordMessageId(discordMessageId: string) {
+  return prisma.darkwebMessage.findFirst({
+    where: { discordMessageId },
+  });
+}
+
+export async function getUserLatestMessage(discordId: string) {
+  return prisma.darkwebMessage.findFirst({
+    where: { discordUserId: discordId, deleted: false },
+    orderBy: { createdAt: 'desc' },
+  });
+}
+
+export async function createReply(
+  discordId: string,
+  darkwebTag: string,
+  rawContent: string,
+  replyToMessageId: string
+): Promise<MessageResult & { messageId?: string; replyToTag?: string }> {
+  // Validate content
+  const contentValidation = validateMessageContent(rawContent);
+  if (!contentValidation.valid) {
+    return { success: false, error: contentValidation.error };
+  }
+
+  // Sanitize content
+  const content = sanitizeContent(rawContent);
+
+  // Run moderation checks
+  const moderationResult = checkModeration(content);
+  if (!moderationResult.passed) {
+    logger.info('Reply rejected by moderation', { discordId, reason: moderationResult.reason });
+    return { success: false, error: moderationResult.reason };
+  }
+
+  // Check cooldown
+  const cooldown = checkCooldown(discordId);
+  if (!cooldown.allowed) {
+    return {
+      success: false,
+      error: `Please wait ${Math.ceil(cooldown.remainingSeconds)} seconds before sending another Darkweb message.`,
+    };
+  }
+
+  // Verify user status
+  const user = await prisma.darkwebUser.findUnique({
+    where: { discordId },
+  });
+
+  if (!user) {
+    return { success: false, error: 'User not found.' };
+  }
+
+  if (user.status === UserStatus.REVOKED) {
+    return { success: false, error: 'Your Darkweb identity is currently inactive.' };
+  }
+
+  if (user.status === UserStatus.BANNED) {
+    return { success: false, error: 'Your Darkweb identity is currently inactive.' };
+  }
+
+  // Verify the target message exists and is not deleted
+  const targetMessage = await prisma.darkwebMessage.findUnique({
+    where: { id: replyToMessageId },
+  });
+
+  if (!targetMessage || targetMessage.deleted) {
+    return { success: false, error: 'The target message no longer exists.' };
+  }
+
+  // Save reply to database
+  try {
+    const message = await prisma.darkwebMessage.create({
+      data: {
+        discordUserId: discordId,
+        darkwebTag,
+        content,
+        replyToMessageId,
+      },
+    });
+
+    // Set cooldown after successful database write
+    setCooldown(discordId);
+
+    logger.info('Reply created', { messageId: message.id, tag: darkwebTag, replyToId: replyToMessageId });
+    return { success: true, messageId: message.id, replyToTag: targetMessage.darkwebTag };
+  } catch (error: unknown) {
+    logger.error('Failed to create reply', {
+      discordId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
+}
+
+export async function editMessage(
+  messageId: string,
+  rawContent: string
+): Promise<MessageResult> {
+  // Validate content
+  const contentValidation = validateMessageContent(rawContent);
+  if (!contentValidation.valid) {
+    return { success: false, error: contentValidation.error };
+  }
+
+  // Sanitize content
+  const content = sanitizeContent(rawContent);
+
+  // Run moderation checks
+  const moderationResult = checkModeration(content);
+  if (!moderationResult.passed) {
+    logger.info('Edited message rejected by moderation', { messageId, reason: moderationResult.reason });
+    return { success: false, error: moderationResult.reason };
+  }
+
+  // Update the message
+  try {
+    const updated = await prisma.darkwebMessage.update({
+      where: { id: messageId },
+      data: {
+        content,
+        editedAt: new Date(),
+      },
+    });
+
+    logger.info('Message edited', { messageId, tag: updated.darkwebTag });
+    return { success: true, messageId };
+  } catch (error: unknown) {
+    logger.error('Failed to edit message', {
+      messageId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
+}
