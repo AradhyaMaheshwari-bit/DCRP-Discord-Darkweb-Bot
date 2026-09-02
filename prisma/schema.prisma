@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model DarkwebUser {
+  id         String   @id @default(uuid())
+  discordId  String   @unique @map("discord_id")
+  darkwebTag String   @unique @map("darkweb_tag") @db.VarChar(4)
+  status     UserStatus @default(ACTIVE)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  messages DarkwebMessage[]
+
+  @@map("darkweb_users")
+}
+
+model DarkwebMessage {
+  id               String   @id @default(uuid())
+  discordUserId    String   @map("discord_user_id")
+  darkwebTag       String   @map("darkweb_tag") @db.VarChar(4)
+  content          String
+  discordMessageId String?  @map("discord_message_id")
+  deleted          Boolean  @default(false)
+  createdAt        DateTime @default(now()) @map("created_at")
+  editedAt         DateTime? @map("edited_at")
+
+  user DarkwebUser @relation(fields: [discordUserId], references: [discordId])
+
+  @@map("darkweb_messages")
+}
+
+model BotConfig {
+  key   String @id
+  value String
+
+  @@map("bot_config")
+}
+
+enum UserStatus {
+  ACTIVE   @map("active")
+  REVOKED  @map("revoked")
+  BANNED   @map("banned")
+}
