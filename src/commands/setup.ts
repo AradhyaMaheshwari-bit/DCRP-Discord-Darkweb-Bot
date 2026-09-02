@@ -1,6 +1,7 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, TextChannel } from 'discord.js';
 import { config } from '../config/config';
 import { logger } from '../utils/logger';
+import { postRegistrationPanel, postMessagingPanel } from '../utils/panels';
 
 function isStaff(interaction: ChatInputCommandInteraction): boolean {
   if (!config.staff.roleId) {
@@ -86,11 +87,47 @@ export const setup = {
         return;
       }
 
+      // Post the registration and messaging panels
+      const regChannel = registrationChannel as TextChannel;
+      const msgChannel = messageChannel as TextChannel;
+
+      const panelResults: string[] = [];
+
+      try {
+        const regPanelId = await postRegistrationPanel(regChannel);
+        if (regPanelId) {
+          panelResults.push('✅ Registration panel posted');
+        } else {
+          panelResults.push('⚠️ Failed to post registration panel');
+        }
+      } catch (error) {
+        logger.error('Error posting registration panel', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        panelResults.push('⚠️ Failed to post registration panel');
+      }
+
+      try {
+        const msgPanelId = await postMessagingPanel(msgChannel);
+        if (msgPanelId) {
+          panelResults.push('✅ Messaging panel posted');
+        } else {
+          panelResults.push('⚠️ Failed to post messaging panel');
+        }
+      } catch (error) {
+        logger.error('Error posting messaging panel', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        panelResults.push('⚠️ Failed to post messaging panel');
+      }
+
       await interaction.editReply({
         content: [
           `✅ **Setup Verified**`,
           ``,
           `All permissions and channels are correctly configured.`,
+          ``,
+          panelResults.join('\n'),
           ``,
           `The Darkweb system is ready to use.`,
         ].join('\n'),
