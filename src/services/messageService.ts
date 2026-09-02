@@ -9,6 +9,11 @@ import type { MessageResult } from '../types';
 // In-memory cooldown tracker — keyed by Discord user ID
 const cooldowns = new Map<string, number>();
 
+// Test-only: reset cooldown state for test isolation
+export function __testResetCooldowns(): void {
+  cooldowns.clear();
+}
+
 export function checkCooldown(discordId: string): { allowed: boolean; remainingSeconds: number } {
   const now = Date.now();
   const lastSent = cooldowns.get(discordId);

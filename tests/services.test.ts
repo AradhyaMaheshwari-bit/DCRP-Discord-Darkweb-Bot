@@ -8,7 +8,7 @@ process.env.DISCORD_GUILD_ID = 'test_guild_id';
 process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://test:test@localhost:5432/darkweb_test?schema=public';
 
 import { registerUser, getUserByDiscordId, getUserByTag } from '../src/services/registrationService';
-import { createMessage, checkCooldown, setCooldown } from '../src/services/messageService';
+import { createMessage, checkCooldown, setCooldown, __testResetCooldowns } from '../src/services/messageService';
 import { validateTag, validateMessageContent } from '../src/utils/validation';
 
 // Use a test database URL or create an in-memory database for tests
@@ -190,6 +190,7 @@ describe('Message Service', () => {
 
   describe('Message Creation', () => {
     beforeEach(async () => {
+      __testResetCooldowns();
       await registerUser('discord_user_msg_1', '1001');
       await registerUser('discord_user_msg_2', '2002');
     });
