@@ -53,12 +53,16 @@ export const setup = {
       const registrationChannel = guild.channels.cache.get(
         config.channels.registrationChannelId
       );
+      const controlChannel = guild.channels.cache.get(config.channels.controlChannelId);
       const messageChannel = guild.channels.cache.get(config.channels.messageChannelId);
 
       const issues: string[] = [];
 
       if (!registrationChannel) {
         issues.push('Registration channel not found or not configured.');
+      }
+      if (!controlChannel) {
+        issues.push('Control channel not found or not configured.');
       }
       if (!messageChannel) {
         issues.push('Message channel not found or not configured.');
@@ -82,6 +86,15 @@ export const setup = {
         }
         if (!regPerms?.has('SendMessages')) {
           issues.push('Bot cannot send messages to registration channel (check channel permissions).');
+        }
+      }
+      if (controlChannel) {
+        const ctrlPerms = controlChannel.permissionsFor(botMember);
+        if (!ctrlPerms?.has('ViewChannel')) {
+          issues.push('Bot cannot view control channel (check channel permissions).');
+        }
+        if (!ctrlPerms?.has('SendMessages')) {
+          issues.push('Bot cannot send messages to control channel (check channel permissions).');
         }
       }
       if (messageChannel) {
@@ -109,15 +122,7 @@ export const setup = {
 
       // Post the registration and messaging panels
       const regChannel = registrationChannel as TextChannel;
-      const msgChannel = messageChannel as TextChannel;
-
-      // DIAGNOSTIC: Log channel types and text-based status
-      logger.info('Channel diagnostics', {
-        regChannelType: registrationChannel?.type,
-        regChannelIsTextBased: (registrationChannel as any)?.isTextBased?.(),
-        msgChannelType: messageChannel?.type,
-        msgChannelIsTextBased: (messageChannel as any)?.isTextBased?.(),
-      });
+      const ctrlChannel = controlChannel as TextChannel;
 
       const panelResults: string[] = [];
 
@@ -136,7 +141,7 @@ export const setup = {
       }
 
       try {
-        const msgPanelId = await postMessagingPanel(msgChannel);
+        const msgPanelId = await postMessagingPanel(ctrlChannel);
         if (msgPanelId) {
           panelResults.push('✅ Messaging panel posted');
         } else {

@@ -21,6 +21,7 @@ export const config = {
 
   channels: {
     registrationChannelId: process.env['DARKWEB_REGISTRATION_CHANNEL_ID'] || '',
+    controlChannelId: process.env['DARKWEB_CONTROL_CHANNEL_ID'] || '',
     messageChannelId: process.env['DARKWEB_MESSAGE_CHANNEL_ID'] || '',
   },
 

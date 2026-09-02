@@ -9,7 +9,7 @@ datasource db {
 
 model DarkwebUser {
   id         String   @id @default(uuid())
-  discordId  String   @unique @map("discord_id")
+  discordId  String?  @unique @map("discord_id")
   darkwebTag String   @unique @map("darkweb_tag") @db.VarChar(4)
   status     UserStatus @default(ACTIVE)
   createdAt  DateTime @default(now()) @map("created_at")
@@ -22,7 +22,7 @@ model DarkwebUser {
 
 model DarkwebMessage {
   id               String   @id @default(uuid())
-  discordUserId    String   @map("discord_user_id")
+  discordUserId    String?  @map("discord_user_id")
   darkwebTag       String   @map("darkweb_tag") @db.VarChar(4)
   content          String
   discordMessageId String?  @map("discord_message_id")
@@ -30,7 +30,7 @@ model DarkwebMessage {
   createdAt        DateTime @default(now()) @map("created_at")
   editedAt         DateTime? @map("edited_at")
 
-  user DarkwebUser @relation(fields: [discordUserId], references: [discordId])
+  user DarkwebUser? @relation(fields: [discordUserId], references: [discordId])
 
   @@map("darkweb_messages")
 }

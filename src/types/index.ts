@@ -37,7 +37,7 @@ export interface MessageResult {
 export interface StaffLookupResult {
   found: boolean;
   tag?: string;
-  discordId?: string;
+  discordId?: string | null;
   discordUsername?: string;
   status?: UserStatus;
   createdAt?: Date;
@@ -56,6 +56,9 @@ export type ModerationCheckResult = {
 
 export const CUSTOM_IDS = {
   CREATE_TAG_BUTTON: 'darkweb:create_tag',
+  DELETE_TAG_BUTTON: 'darkweb:delete_tag',
+  DELETE_TAG_CONFIRM: 'darkweb:delete_tag_confirm',
+  DELETE_TAG_CANCEL: 'darkweb:delete_tag_cancel',
   NEW_MESSAGE_BUTTON: 'darkweb:new_message',
   CREATE_TAG_MODAL: 'darkweb:create_tag_modal',
   CREATE_TAG_INPUT: 'darkweb:create_tag_input',

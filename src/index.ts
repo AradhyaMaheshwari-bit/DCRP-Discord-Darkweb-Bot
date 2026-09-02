@@ -11,6 +11,8 @@ import { logger } from './utils/logger';
 import { CUSTOM_IDS } from './types';
 import { handleCreateTagButton } from './interactions/buttons/createTag';
 import { handleNewMessageButton } from './interactions/buttons/newMessage';
+import { handleDeleteTagButton } from './interactions/buttons/deleteTag';
+import { handleDeleteTagConfirm, handleDeleteTagCancel } from './interactions/buttons/deleteTagConfirmation';
 import { handleCreateTagModal } from './interactions/modals/createTag';
 import { handleNewMessageModal } from './interactions/modals/newMessage';
 import { staff } from './commands/staff';
@@ -64,6 +66,12 @@ client.on('interactionCreate', async (interaction) => {
         await handleCreateTagButton(interaction);
       } else if (interaction.customId === CUSTOM_IDS.NEW_MESSAGE_BUTTON) {
         await handleNewMessageButton(interaction);
+      } else if (interaction.customId === CUSTOM_IDS.DELETE_TAG_BUTTON) {
+        await handleDeleteTagButton(interaction);
+      } else if (interaction.customId === CUSTOM_IDS.DELETE_TAG_CONFIRM) {
+        await handleDeleteTagConfirm(interaction);
+      } else if (interaction.customId === CUSTOM_IDS.DELETE_TAG_CANCEL) {
+        await handleDeleteTagCancel(interaction);
       }
       return;
     }
