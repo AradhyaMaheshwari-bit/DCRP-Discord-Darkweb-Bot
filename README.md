@@ -435,7 +435,14 @@ For issues or questions:
 
 ## License
 
-This project is part of the DCRP ecosystem.
+Copyright (c) 2026 Aradhya Maheshwari
+
+All rights reserved.
+
+This software and its source code are proprietary to
+Aradhya Maheshwari.
+
+See the [LICENSE](LICENSE) file for the full license terms.
 
 ## Contributing
 
