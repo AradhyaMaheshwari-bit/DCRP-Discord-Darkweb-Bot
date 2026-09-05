@@ -19,7 +19,7 @@ import { handleCreateTagModal } from './interactions/modals/createTag';
 import { handleNewMessageModal } from './interactions/modals/newMessage';
 import { handleReplyContentModal } from './interactions/modals/replyContent';
 import { handleEditMessageModal } from './interactions/modals/editMessage';
-import { staff } from './commands/staff';
+import { staff, handleStaffListPageButton } from './commands/staff';
 import { setup } from './commands/setup';
 
 const client = new Client({
@@ -80,6 +80,12 @@ client.on('interactionCreate', async (interaction) => {
         await handleReplyMessageButton(interaction);
       } else if (interaction.customId === CUSTOM_IDS.EDIT_MESSAGE_BUTTON) {
         await handleEditMessageButton(interaction);
+      } else if (interaction.customId.startsWith(`${CUSTOM_IDS.STAFF_LIST_PREV}:`)) {
+        const page = parseInt(interaction.customId.split(':')[2] ?? '0', 10) - 1;
+        await handleStaffListPageButton(interaction, Number.isFinite(page) ? page : 0);
+      } else if (interaction.customId.startsWith(`${CUSTOM_IDS.STAFF_LIST_NEXT}:`)) {
+        const page = parseInt(interaction.customId.split(':')[2] ?? '0', 10) + 1;
+        await handleStaffListPageButton(interaction, Number.isFinite(page) ? page : 0);
       }
       return;
     }

@@ -1,7 +1,7 @@
 import { UserStatus } from '@prisma/client';
 import { prisma } from '../database/client';
 import { logger } from '../utils/logger';
-import type { StaffLookupResult, StaffActionResult } from '../types';
+import type { StaffLookupResult, StaffActionResult, StaffListResult } from '../types';
 
 export async function lookupByTag(tag: string): Promise<StaffLookupResult> {
   const user = await prisma.darkwebUser.findUnique({
@@ -137,4 +137,29 @@ export async function unbanUser(tag: string): Promise<StaffActionResult> {
 
   logger.info('Staff unbanned/unrevoked user', { tag });
   return { success: true };
+}
+
+export async function getAllDarkwebUsers(): Promise<StaffListResult> {
+  const users = await prisma.darkwebUser.findMany({
+    orderBy: { createdAt: 'desc' },
+    include: {
+      messages: {
+        where: { deleted: false },
+        select: { id: true },
+      },
+    },
+  });
+
+  logger.info('Staff listed all Darkweb identities', { count: users.length });
+
+  return {
+    total: users.length,
+    entries: users.map((u) => ({
+      tag: u.darkwebTag,
+      discordId: u.discordId,
+      status: u.status,
+      createdAt: u.createdAt,
+      messageCount: u.messages.length,
+    })),
+  };
 }

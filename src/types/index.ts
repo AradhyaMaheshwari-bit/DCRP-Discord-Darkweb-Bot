@@ -44,6 +44,19 @@ export interface StaffLookupResult {
   messageCount?: number;
 }
 
+export interface StaffListEntry {
+  tag: string;
+  discordId: string | null;
+  status: UserStatus;
+  createdAt: Date;
+  messageCount: number;
+}
+
+export interface StaffListResult {
+  total: number;
+  entries: StaffListEntry[];
+}
+
 export interface StaffActionResult {
   success: boolean;
   error?: string;
@@ -72,4 +85,6 @@ export const CUSTOM_IDS = {
   REPLY_CONTENT_INPUT: 'darkweb:reply_content_input',
   EDIT_MESSAGE_MODAL: 'darkweb:edit_message_modal',
   EDIT_MESSAGE_INPUT: 'darkweb:edit_message_input',
+  STAFF_LIST_PREV: 'darkweb:staff_list_prev',
+  STAFF_LIST_NEXT: 'darkweb:staff_list_next',
 } as const;

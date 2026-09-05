@@ -1,14 +1,18 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction } from 'discord.js';
-import { lookupByTag, lookupByDiscordId, revokeUser, banUser, unbanUser, resetUser } from '../services/staffService';
+import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageComponentInteraction } from 'discord.js';
+import { lookupByTag, lookupByDiscordId, revokeUser, banUser, unbanUser, resetUser, getAllDarkwebUsers } from '../services/staffService';
 import { config } from '../config/config';
 import { logger } from '../utils/logger';
 import { formatTag } from '../utils/formatting';
+import { CUSTOM_IDS } from '../types';
+import type { StaffListEntry } from '../types';
 
-function isStaff(interaction: ChatInputCommandInteraction): boolean {
+const PAGE_SIZE = 10;
+
+function isStaff(interaction: ChatInputCommandInteraction | MessageComponentInteraction): boolean {
   if (!config.staff.roleId) {
     return false;
   }
-  return (interaction.member?.roles as any)?.has?.(config.staff.roleId) || false;
+  return (interaction.member?.roles as any)?.cache?.has(config.staff.roleId) ?? false;
 }
 
 export const staff = {
@@ -75,6 +79,11 @@ export const staff = {
             .setDescription('Discord user to reset')
             .setRequired(true)
         )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('list')
+        .setDescription('List all Darkweb identities (staff only)')
     ),
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -100,6 +109,8 @@ export const staff = {
         await handleUnban(interaction);
       } else if (subcommand === 'reset') {
         await handleReset(interaction);
+      } else if (subcommand === 'list') {
+        await handleList(interaction);
       }
     } catch (error) {
       logger.error('Error in staff command', {
@@ -284,6 +295,122 @@ async function handleReset(interaction: ChatInputCommandInteraction): Promise<vo
     });
     if (interaction.deferred) {
       await interaction.editReply({ content: '❌ Reset failed.' });
+    }
+  }
+}
+
+function buildListEmbed(entries: StaffListEntry[], total: number, page: number): EmbedBuilder {
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const start = page * PAGE_SIZE;
+  const pageEntries = entries.slice(start, start + PAGE_SIZE);
+
+  const embed = new EmbedBuilder()
+    .setTitle('🕸️ DARKWEB IDENTITIES')
+    .setColor(0x2b2d31)
+    .setDescription(
+      `Total: **${total}** identity${total === 1 ? '' : 'ies'} • Page **${page + 1}** / **${totalPages}**`
+    );
+
+  if (pageEntries.length === 0) {
+    embed.addFields({ name: '', value: '_No identities on this page._' });
+    return embed;
+  }
+
+  const lines = pageEntries.map((entry) => {
+    const statusEmoji =
+      entry.status === 'ACTIVE' ? '🟢' : entry.status === 'REVOKED' ? '🟡' : '🔴';
+    const discordLabel = entry.discordId ? `<@${entry.discordId}>` : '**UNLINKED**';
+    const registered = entry.createdAt.toLocaleString();
+    return `${statusEmoji} **${formatTag(entry.tag)}** • ${entry.status} • ${entry.messageCount} msg • ${discordLabel} • ${registered}`;
+  });
+
+  embed.addFields({ name: '', value: lines.join('\n') });
+  return embed;
+}
+
+function buildPaginationRow(entries: StaffListEntry[], total: number, page: number): ActionRowBuilder<ButtonBuilder> {
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const prevDisabled = page === 0;
+  const nextDisabled = page >= totalPages - 1;
+
+  const prevButton = new ButtonBuilder()
+    .setCustomId(`${CUSTOM_IDS.STAFF_LIST_PREV}:${page}`)
+    .setLabel('◀ Previous')
+    .setStyle(ButtonStyle.Secondary)
+    .setDisabled(prevDisabled);
+
+  const nextButton = new ButtonBuilder()
+    .setCustomId(`${CUSTOM_IDS.STAFF_LIST_NEXT}:${page}`)
+    .setLabel('Next ▶')
+    .setStyle(ButtonStyle.Secondary)
+    .setDisabled(nextDisabled);
+
+  return new ActionRowBuilder<ButtonBuilder>().addComponents(prevButton, nextButton);
+}
+
+async function handleList(interaction: ChatInputCommandInteraction): Promise<void> {
+  try {
+    await interaction.deferReply({ ephemeral: true });
+
+    const result = await getAllDarkwebUsers();
+
+    if (result.total === 0) {
+      await interaction.editReply({
+        content: 'No Darkweb identities are currently registered.',
+      });
+      return;
+    }
+
+    const embed = buildListEmbed(result.entries, result.total, 0);
+    const row = buildPaginationRow(result.entries, result.total, 0);
+
+    await interaction.editReply({ embeds: [embed], components: [row] });
+  } catch (error) {
+    logger.error('Error in list command', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    if (interaction.deferred) {
+      await interaction.editReply({ content: '❌ List failed.' });
+    }
+  }
+}
+
+export async function handleStaffListPageButton(interaction: MessageComponentInteraction, targetPage: number): Promise<void> {
+  try {
+    if (!isStaff(interaction)) {
+      await interaction.reply({
+        content: '❌ You do not have permission to use this control.',
+        ephemeral: true,
+      });
+      return;
+    }
+
+    const result = await getAllDarkwebUsers();
+
+    if (result.total === 0) {
+      await interaction.update({
+        content: 'No Darkweb identities are currently registered.',
+        embeds: [],
+        components: [],
+      });
+      return;
+    }
+
+    const totalPages = Math.max(1, Math.ceil(result.total / PAGE_SIZE));
+    const safePage = Math.max(0, Math.min(targetPage, totalPages - 1));
+
+    const embed = buildListEmbed(result.entries, result.total, safePage);
+    const row = buildPaginationRow(result.entries, result.total, safePage);
+
+    await interaction.update({ embeds: [embed], components: [row] });
+  } catch (error) {
+    logger.error('Error handling staff list page button', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    if (interaction.replied || interaction.deferred) {
+      await interaction.followUp({ content: '❌ Failed to change page.', ephemeral: true });
+    } else {
+      await interaction.reply({ content: '❌ Failed to change page.', ephemeral: true });
     }
   }
 }

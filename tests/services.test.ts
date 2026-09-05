@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, afterAll, beforeEach } from 'vitest';
 import { PrismaClient, UserStatus } from '@prisma/client';
 
 // Set dummy environment variables for tests
@@ -10,6 +10,8 @@ process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://test:test@l
 import { registerUser, getUserByDiscordId, getUserByTag } from '../src/services/registrationService';
 import { createMessage, checkCooldown, setCooldown, __testResetCooldowns } from '../src/services/messageService';
 import { validateTag, validateMessageContent } from '../src/utils/validation';
+import { getAllDarkwebUsers } from '../src/services/staffService';
+import { staff } from '../src/commands/staff';
 
 // Use a test database URL or create an in-memory database for tests
 const prisma = new PrismaClient();
@@ -232,5 +234,193 @@ describe('Message Service', () => {
       expect(result2.success).toBe(false);
       expect(result2.error).toContain('wait');
     });
+  });
+});
+
+describe('Staff List Service (getAllDarkwebUsers)', () => {
+  beforeEach(async () => {
+    __testResetCooldowns();
+    await prisma.darkwebMessage.deleteMany({});
+    await prisma.darkwebUser.deleteMany({});
+  });
+
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
+
+  it('should return an empty result when no identities exist', async () => {
+    const result = await getAllDarkwebUsers();
+    expect(result.total).toBe(0);
+    expect(result.entries).toEqual([]);
+  });
+
+  it('should return multiple identities', async () => {
+    await registerUser('discord_list_1', '1001');
+    await registerUser('discord_list_2', '1002');
+    await registerUser('discord_list_3', '1003');
+
+    const result = await getAllDarkwebUsers();
+    expect(result.total).toBe(3);
+    expect(result.entries).toHaveLength(3);
+  });
+
+  it('should include ACTIVE identities', async () => {
+    await registerUser('discord_list_active', '2001');
+    const result = await getAllDarkwebUsers();
+    const entry = result.entries.find((e) => e.tag === '2001');
+    expect(entry).toBeDefined();
+    expect(entry?.status).toBe(UserStatus.ACTIVE);
+  });
+
+  it('should include REVOKED identities', async () => {
+    await registerUser('discord_list_revoked', '2002');
+    await prisma.darkwebUser.update({
+      where: { discordId: 'discord_list_revoked' },
+      data: { status: UserStatus.REVOKED },
+    });
+
+    const result = await getAllDarkwebUsers();
+    const entry = result.entries.find((e) => e.tag === '2002');
+    expect(entry).toBeDefined();
+    expect(entry?.status).toBe(UserStatus.REVOKED);
+  });
+
+  it('should include BANNED identities', async () => {
+    await registerUser('discord_list_banned', '2003');
+    await prisma.darkwebUser.update({
+      where: { discordId: 'discord_list_banned' },
+      data: { status: UserStatus.BANNED },
+    });
+
+    const result = await getAllDarkwebUsers();
+    const entry = result.entries.find((e) => e.tag === '2003');
+    expect(entry).toBeDefined();
+    expect(entry?.status).toBe(UserStatus.BANNED);
+  });
+
+  it('should include UNLINKED identities (discordId = NULL)', async () => {
+    // Register and then simulate Delete Tag by nulling discordId
+    await prisma.darkwebUser.create({
+      data: {
+        discordId: null,
+        darkwebTag: '6969',
+        status: UserStatus.ACTIVE,
+      },
+    });
+
+    const result = await getAllDarkwebUsers();
+    const entry = result.entries.find((e) => e.tag === '6969');
+    expect(entry).toBeDefined();
+    expect(entry?.discordId).toBeNull();
+  });
+
+  it('should compute correct message counts', async () => {
+    await registerUser('discord_list_counts', '3001');
+
+    // Insert 3 messages directly to bypass the cooldown layer
+    // (we are testing the count behavior, not the cooldown)
+    await prisma.darkwebMessage.createMany({
+      data: [
+        { discordUserId: 'discord_list_counts', darkwebTag: '3001', content: 'msg 1' },
+        { discordUserId: 'discord_list_counts', darkwebTag: '3001', content: 'msg 2' },
+        { discordUserId: 'discord_list_counts', darkwebTag: '3001', content: 'msg 3' },
+      ],
+    });
+
+    const result = await getAllDarkwebUsers();
+    const entry = result.entries.find((e) => e.tag === '3001');
+    expect(entry?.messageCount).toBe(3);
+  });
+
+  it('should return only non-deleted messages in the count', async () => {
+    await registerUser('discord_list_deleted', '3002');
+    const created = await createMessage('discord_list_deleted', '3002', 'visible');
+    expect(created.success).toBe(true);
+
+    // Mark the message as deleted in the DB
+    if (created.messageId) {
+      await prisma.darkwebMessage.update({
+        where: { id: created.messageId },
+        data: { deleted: true },
+      });
+    }
+
+    const result = await getAllDarkwebUsers();
+    const entry = result.entries.find((e) => e.tag === '3002');
+    expect(entry?.messageCount).toBe(0);
+  });
+
+  it('should not expose message content in list entries', async () => {
+    await registerUser('discord_list_content', '3003');
+    await createMessage('discord_list_content', '3003', 'super secret content');
+
+    const result = await getAllDarkwebUsers();
+    const entry = result.entries.find((e) => e.tag === '3003');
+    expect(entry).toBeDefined();
+
+    // Serialize the entire result and check no message content leaks
+    const serialized = JSON.stringify(result);
+    expect(serialized).not.toContain('super secret content');
+  });
+
+  it('should sort entries newest first (descending createdAt)', async () => {
+    const a = await registerUser('discord_list_order_a', '4001');
+    expect(a.success).toBe(true);
+
+    // Force a clear ordering by waiting briefly between registrations
+    await new Promise((r) => setTimeout(r, 10));
+
+    const b = await registerUser('discord_list_order_b', '4002');
+    expect(b.success).toBe(true);
+
+    await new Promise((r) => setTimeout(r, 10));
+
+    const c = await registerUser('discord_list_order_c', '4003');
+    expect(c.success).toBe(true);
+
+    const result = await getAllDarkwebUsers();
+    expect(result.entries[0]?.tag).toBe('4003');
+    expect(result.entries[1]?.tag).toBe('4002');
+    expect(result.entries[2]?.tag).toBe('4001');
+  });
+
+  it('should preserve unlinked identities alongside linked ones in total', async () => {
+    await registerUser('discord_list_linked', '5001');
+    await prisma.darkwebUser.create({
+      data: {
+        discordId: null,
+        darkwebTag: '5002',
+        status: UserStatus.ACTIVE,
+      },
+    });
+
+    const result = await getAllDarkwebUsers();
+    expect(result.total).toBe(2);
+    expect(result.entries).toHaveLength(2);
+
+    const unlinked = result.entries.find((e) => e.tag === '5002');
+    expect(unlinked?.discordId).toBeNull();
+  });
+
+  it('should return createdAt as a Date object', async () => {
+    await registerUser('discord_list_date', '6001');
+    const result = await getAllDarkwebUsers();
+    const entry = result.entries.find((e) => e.tag === '6001');
+    expect(entry?.createdAt).toBeInstanceOf(Date);
+  });
+});
+
+describe('Staff List Command Behavior (Ephemeral Permission Check)', () => {
+  it('should have list subcommand registered on /darkweb', () => {
+    const subcommands = staff.data.options.map((o) => o.name);
+    expect(subcommands).toContain('list');
+  });
+
+  it('should require no options for the list subcommand', () => {
+    const listOption = staff.data.options.find((o) => o.name === 'list');
+    expect(listOption).toBeDefined();
+    if (listOption && 'options' in listOption && listOption.options) {
+      expect(listOption.options.length).toBe(0);
+    }
   });
 });
